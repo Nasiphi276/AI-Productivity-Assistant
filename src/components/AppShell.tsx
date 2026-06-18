@@ -8,34 +8,31 @@ import { createThread, deriveTitle, loadThreads, saveThreads, type Thread } from
 export function AppShell({ activeThreadId }: { activeThreadId?: string }) {
   const navigate = useNavigate();
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setThreads(loadThreads());
-    setHydrated(true);
-  }, []);
-
-  // If no active thread but we're on a thread route, redirect; if on "/" with threads, open most recent
-  useEffect(() => {
-    if (!hydrated) return;
+    const existing = loadThreads();
     if (!activeThreadId) {
-      if (threads.length > 0) {
-        navigate({ to: "/$threadId", params: { threadId: threads[0].id } });
+      if (existing.length > 0) {
+        setThreads(existing);
+        navigate({ to: "/$threadId", params: { threadId: existing[0].id }, replace: true });
       } else {
         const t = createThread();
         const next = [t];
-        setThreads(next);
         saveThreads(next);
-        navigate({ to: "/$threadId", params: { threadId: t.id } });
+        setThreads(next);
+        navigate({ to: "/$threadId", params: { threadId: t.id }, replace: true });
       }
-    } else if (!threads.find((t) => t.id === activeThreadId)) {
-      // unknown id — create stub
-      const t: Thread = { ...createThread(), id: activeThreadId };
-      const next = [t, ...threads];
-      setThreads(next);
-      saveThreads(next);
+      return;
     }
-  }, [hydrated, activeThreadId, threads, navigate]);
+    if (!existing.find((t) => t.id === activeThreadId)) {
+      const t: Thread = { ...createThread(), id: activeThreadId };
+      const next = [t, ...existing];
+      saveThreads(next);
+      setThreads(next);
+    } else {
+      setThreads(existing);
+    }
+  }, [activeThreadId, navigate]);
 
   const handleNewThread = useCallback(() => {
     const t = createThread();
